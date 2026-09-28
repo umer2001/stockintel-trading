@@ -1,6 +1,6 @@
 {
   "name": "@umer2001/stockintel-trading",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Unofficial TypeScript client & Protocol Buffer definitions for the StockIntel Trading API (PSX)",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
