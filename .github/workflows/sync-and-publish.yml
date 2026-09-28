@@ -1,0 +1,131 @@
+name: Sync Upstream & Publish Package
+
+on:
+  schedule:
+    # Run daily at 02:00 UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      force_publish:
+        description: 'Force build and publish even if upstream has no new changes'
+        type: boolean
+        default: false
+      bump_type:
+        description: 'Version bump type (patch, minor, major)'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  sync-and-publish:
+    name: Sync Upstream, Build & Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Check for Upstream Changes
+        id: upstream_check
+        run: |
+          git remote add upstream https://github.com/capitalstake/stockintel-trading.git || true
+          git fetch upstream main
+
+          BEHIND_COUNT=$(git rev-list --count HEAD..upstream/main)
+          echo "Upstream commits behind: $BEHIND_COUNT"
+
+          if [ "$BEHIND_COUNT" -gt 0 ]; then
+            echo "has_updates=true" >> "$GITHUB_OUTPUT"
+            echo "Merging upstream/main..."
+            git merge upstream/main -m "chore: sync with upstream capitalstake/stockintel-trading"
+          else
+            echo "has_updates=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Evaluate Run Condition
+        id: condition
+        run: |
+          FORCE="${{ github.event.inputs.force_publish }}"
+          HAS_UPDATES="${{ steps.upstream_check.outputs.has_updates }}"
+          if [ "$FORCE" = "true" ] || [ "$HAS_UPDATES" = "true" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "No upstream changes and force_publish not requested. Skipping build and publish."
+          fi
+
+      - name: Setup pnpm
+        if: steps.condition.outputs.should_run == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        if: steps.condition.outputs.should_run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@umer2001'
+
+      - name: Install Dependencies
+        if: steps.condition.outputs.should_run == 'true'
+        run: pnpm install
+
+      - name: Build Package & Types
+        if: steps.condition.outputs.should_run == 'true'
+        run: |
+          pnpm run build
+          pnpm run typecheck
+
+      - name: Bump Version & Tag
+        if: steps.condition.outputs.should_run == 'true'
+        id: versioning
+        run: |
+          BUMP="${{ github.event.inputs.bump_type || 'patch' }}"
+          npm version "$BUMP" --no-git-tag-version
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+          git add package.json pnpm-lock.yaml src/proto/
+          git commit -m "chore(release): bump version to v$NEW_VERSION"
+          git tag "v$NEW_VERSION"
+
+      - name: Push Changes to Fork
+        if: steps.condition.outputs.should_run == 'true'
+        run: |
+          git push origin main --tags
+
+      - name: Publish to GitHub Packages
+        if: steps.condition.outputs.should_run == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pnpm publish --no-git-checks
+
+      - name: Create GitHub Release
+        if: steps.condition.outputs.should_run == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.versioning.outputs.version }}"
+          gh release create "v$VERSION" \
+            --title "Release v$VERSION" \
+            --generate-notes

@@ -1,0 +1,73 @@
+{
+  "name": "@umer2001/stockintel-trading",
+  "version": "0.1.0",
+  "description": "Unofficial TypeScript client & Protocol Buffer definitions for the StockIntel Trading API (PSX)",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./proto": {
+      "import": {
+        "types": "./dist/proto/capri.d.ts",
+        "default": "./dist/proto/capri.mjs"
+      },
+      "require": {
+        "types": "./dist/proto/capri.d.ts",
+        "default": "./dist/proto/capri.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "capri.proto"
+  ],
+  "scripts": {
+    "proto:gen": "protoc --ts_out src/proto --ts_opt long_type_string --proto_path . capri.proto",
+    "build": "pnpm run proto:gen && tsup",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build"
+  },
+  "keywords": [
+    "psx",
+    "pakistan-stock-exchange",
+    "stockintel",
+    "capitalstake",
+    "trading-api",
+    "algorithmic-trading",
+    "websocket",
+    "protobuf"
+  ],
+  "author": "Umer <umer2001>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/umer2001/stockintel-trading.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "dependencies": {
+    "@protobuf-ts/runtime": "^2.11.1",
+    "uuid": "^11.1.0",
+    "ws": "^8.18.1"
+  },
+  "devDependencies": {
+    "@protobuf-ts/plugin": "^2.11.1",
+    "@types/node": "^22.13.0",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.5.14",
+    "protoc": "^36.2.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.7.3"
+  }
+}

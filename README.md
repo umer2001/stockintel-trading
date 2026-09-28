@@ -1,4 +1,75 @@
-# StockIntel Trading API
+# StockIntel Trading API & TypeScript Client
+
+[![npm version](https://img.shields.io/npm/v/@umer2001/stockintel-trading.svg)](https://www.npmjs.com/package/@umer2001/stockintel-trading)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+> **Maintained Fork & Package**: This repository is a fork of [`capitalstake/stockintel-trading`](https://github.com/capitalstake/stockintel-trading). It includes automated daily upstream synchronization, pre-compiled Protocol Buffer definitions, and a fully-typed, auto-reconnecting WebSocket client published to **GitHub Packages** as [`@umer2001/stockintel-trading`](https://github.com/umer2001/stockintel-trading/packages).
+
+### Installation
+
+To install packages from the `@umer2001` GitHub Packages registry, ensure your project's `.npmrc` includes:
+
+```ini
+@umer2001:registry=https://npm.pkg.github.com
+```
+
+Then install the package:
+
+```bash
+pnpm add @umer2001/stockintel-trading
+# or
+npm install @umer2001/stockintel-trading
+```
+
+### TypeScript Client Quickstart
+
+```typescript
+import { StockIntelTradingClient, Market, OrderSide, OrderType } from '@umer2001/stockintel-trading';
+
+const client = new StockIntelTradingClient({
+  token: 'si_sb_YOUR_SANDBOX_TOKEN',
+  otp: '54321', // sandbox OTP
+  autoReconnect: true,
+});
+
+// Event listeners
+client.on('welcome', (welcome) => {
+  console.log(`Connected to environment: ${welcome.environment}`);
+});
+
+client.on('quote', (quote) => {
+  console.log(`Quote: ${quote.symbol} Price=${quote.close} Vol=${quote.volume}`);
+});
+
+client.on('execution', (event) => {
+  const ex = event.execution;
+  console.log(`Execution: ${ex?.symbol} Status=${ex?.status} ExecQty=${ex?.quantityExecuted}`);
+});
+
+async function run() {
+  await client.connect();
+
+  // Subscribe to real-time quotes on PSX Regular Market
+  await client.subscribeQuotes(['LUCK', 'OGDC', 'ENGRO']);
+
+  // Place a test order
+  await client.placeOrder({
+    brokerCode: 'sandbox',
+    clientCode: 'CS01',
+    symbol: 'LUCK',
+    market: Market.REG,
+    side: OrderSide.BUY,
+    type: OrderType.LIMIT,
+    quantity: 100,
+    price: 900.5,
+    pin: '1234',
+  });
+}
+
+run().catch(console.error);
+```
+
+---
 
 The StockIntel Trading API is a real-time, low-latency **WebSocket** interface for placing and managing orders, querying account positions, and receiving live execution and market-session updates. The protocol speaks **Protocol Buffers** (proto3) over binary WebSocket frames — compact, typed, and efficient.
 
