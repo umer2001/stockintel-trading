@@ -124,8 +124,10 @@ jobs:
         if: steps.condition.outputs.should_run == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           VERSION="${{ steps.versioning.outputs.version }}"
           gh release create "v$VERSION" \
+            --repo "${{ github.repository }}" \
             --title "Release v$VERSION" \
             --generate-notes
